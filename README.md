@@ -12,7 +12,15 @@ It maintain a text file under $HOME/.todo, it tracks your todo item.
 It offer a todo tracking with simple command interface, as well a as a very good Google inbox like snooze feature, for reminding you to come back later. I love inbox snooze, however Google sunset it. What a pity.
 
 # How to use?
-## Adding todo:
+
+Usage:
+  todo + <string> : Add a todo
+  todo done|d <id> <id> <id> ... : mark todos as done
+  todd undo|u <id> <id> <id> ... : mark todos as undone
+  todd - <id> <id> <id> ... : delete todos
+  todd snooze|s <yyyyMMdd or MMdd> <id> <id> <id> ...: snooze todos to the date, default is tomorrow
+  todd all : show all todos (with snoozed)
+ 
 ```
 Let's add a todo.
 
@@ -65,7 +73,7 @@ root@bazinga ~# todo done 1 2
  >>>>  2  [DONE] Deposit check 
  >>>>  3  [TODO] Email michael ask for meeting invitation 
 
-I won't want to keep 1 and 2 because it is irrelevant.
+I won't want to keep 1 and 2 because it is irrelevant. Operator "-" is used this case.
 root@bazinga ~# todo - 1 2
  >>>>  1  [TODO] Email michael ask for meeting invitation 
 They are gone.
