@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/perl
 use Term::ANSIColor;
 use Time::Piece;
 
@@ -9,14 +9,14 @@ my $arg = shift @ARGV;
 my $content = join(" ", @ARGV);
 $content =~ s/^\s+//g;
 $content =~ s/\s+$//g;
-if(lc($arg) eq 'a' or $arg eq "+" or lc($arg) eq "add") {
+if($arg eq "+") {
   if($content) {
     &add_todo($content);
     &show_todo(0);
   } else {
     print("Please specify task.\n");
   }
-} elsif(lc($arg) eq "c" || lc($arg) eq "comp" || lc($arg) eq "done") {
+} elsif(lc($arg) eq "d" || lc($arg) eq "done") {
   # mark as done for @ARGV
   &mark(1, @ARGV);
   &show_todo(0);
@@ -24,9 +24,9 @@ if(lc($arg) eq 'a' or $arg eq "+" or lc($arg) eq "add") {
   # mark as todo for @ARGV
   &mark(0, @ARGV);
   &show_todo(0);
-} elsif(lc($arg) eq 'all') {
+} elsif(lc($arg) eq 'all' || lc($arg) eq "a") {
   &show_todo(1);
-} elsif(lc($arg) eq 'd' || lc($arg) eq "del" || lc($arg) eq "delete" || lc($arg) eq "r" || lc($arg) eq "remove" || lc($arg) eq "rm" || $arg eq "-") {
+} elsif($arg eq "-") {
   &remove_todo(@ARGV);
   &show_todo(0);
 } elsif(lc($arg) eq 's' or lc($arg) eq "snooze") {
@@ -121,12 +121,12 @@ sub snooze_todos() {
 
 sub print_usage() {
   print("Usage:\n");
-  print("  td a <string> : Add a todo\n");
-  print("  td done <id> <id> <id> ... : mark todos as done\n");
-  print("  td undo <id> <id> <id> ... : mark todos as undone\n");
-  print("  td d <id> <id> <id> ... : delete todos\n");
-  print("  td s <yyyyMMdd or MMdd> <id> <id> <id> ...: snooze todos to the date, default is tomorrow\n");
-  print("  td all : show all todos (with snoozed)\n");
+  print("  todo + <string> : Add a todo\n");
+  print("  todo done|d <id> <id> <id> ... : mark todos as done\n");
+  print("  todd undo|u <id> <id> <id> ... : mark todos as undone\n");
+  print("  todd - <id> <id> <id> ... : delete todos\n");
+  print("  todd snooze|s <yyyyMMdd or MMdd> <id> <id> <id> ...: snooze todos to the date, default is tomorrow\n");
+  print("  todd all : show all todos (with snoozed)\n");
 }
 # Show todos. Parameter specifies whether force to show all, including snoozed to futures
 sub show_todo($) {
