@@ -5,6 +5,7 @@ use Time::Piece;
 our $HOME = $ENV{HOME};
 our $FILE = "$HOME/.todo";
 
+
 my $arg = shift @ARGV;
 my $content = join(" ", @ARGV);
 $content =~ s/^\s+//g;
