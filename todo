@@ -30,7 +30,11 @@ if($arg eq "+") {
 } elsif($arg eq "-") {
   &remove_todo(@ARGV);
   &show_todo(0);
-} elsif(lc($arg) eq 's' or lc($arg) eq "snooze") {
+} elsif(lc($arg) eq 's' or lc($arg) eq "snooze" or lc($arg) =~ m/snooze\+\d+/) {
+  my $days = -1;
+  if(lc($arg) =~ m/snooze\+(\d+)/) {
+    $days = $1;
+  }
   &snooze_todos(@ARGV);
   &show_todo(1);
 } elsif(lc($arg) eq "help" || lc ($arg) eq "h" || lc($arg) eq "?" || lc($arg) eq "-h" || lc($arg) eq "--help") {
