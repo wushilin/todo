@@ -1,0 +1,214 @@
+#!/usr/bin/perl
+use Term::ANSIColor;
+use Time::Piece;
+
+our $HOME = $ENV{HOME};
+our $FILE = "$HOME/.todo";
+
+
+my $arg = shift @ARGV;
+my $content = join(" ", @ARGV);
+$content =~ s/^\s+//g;
+$content =~ s/\s+$//g;
+if($arg eq "+") {
+  if($content) {
+    &add_todo($content);
+    &show_todo(0);
+  } else {
+    print("Please specify task.\n");
+  }
+} elsif(lc($arg) eq "d" || lc($arg) eq "done") {
+  # mark as done for @ARGV
+  &mark(1, @ARGV);
+  &show_todo(0);
+} elsif(lc($arg) eq "u" || lc($arg) eq "undone" || lc($arg) eq "undo") {
+  # mark as todo for @ARGV
+  &mark(0, @ARGV);
+  &show_todo(0);
+} elsif(lc($arg) eq 'all' || lc($arg) eq "a") {
+  &show_todo(1);
+} elsif($arg eq "-") {
+  &remove_todo(@ARGV);
+  &show_todo(0);
+} elsif(lc($arg) eq 's' or lc($arg) eq "snooze" or lc($arg) =~ m/snooze\+\d+/) {
+  my $days = -1;
+  if(lc($arg) =~ m/snooze\+(\d+)/) {
+    $days = $1;
+  }
+  &snooze_todos(@ARGV);
+  &show_todo(1);
+} elsif(lc($arg) eq "help" || lc ($arg) eq "h" || lc($arg) eq "?" || lc($arg) eq "-h" || lc($arg) eq "--help") {
+  &print_usage();
+} else {
+  &show_todo(0);
+}
+
+sub remove_todo() {
+  # deleting...
+  my @ids = @_;
+  my $data = &read_todo();
+  my $counter = 0;
+  my $hash = {};
+  foreach my $id(@ids) {
+    $hash->{$id} = 1;
+  }
+  my @new_data = ();
+  foreach my $entry(@$data) {
+    $counter = $counter + 1;
+    if($hash->{$counter}) {
+    } else {
+      push @new_data, $entry;
+    }
+  }
+  &save_todo(\@new_data);
+}
+
+sub mark() {
+  my $status = shift @_;
+  my @ids = @_;
+  my $data = &read_todo();
+  my $hash = {};
+  foreach my $id(@ids) {
+    $hash->{$id} = 1;
+  }
+  my $counter = 0;
+  foreach my $entry(@$data) {
+    $counter = $counter + 1;
+    if($hash->{$counter}) {
+      $entry->{completed} = $status;
+    }
+  }
+  &save_todo($data);
+}
+sub snooze_todos() {
+  my $date = $_[0]; # default first arg is the date to snooze to. If it is not in YYYYMMDD or MMDD format, it is treated as an id.
+  if(not( $date =~ m/^\d{4}$/ || $date =~ m/^\d{8}$/)) {
+    # bad date specifier, default to tomorrow
+    my $today = localtime;
+    my $tmr = localtime($today->epoch + 24*3600);
+    $date = "" . $tmr->strftime("%Y%m%d");
+  } else {
+    # okay discard it from incoming params
+    shift @_;
+  }
+
+  my $epoch_snooze = time;
+
+  if(length($date) == 4) {
+    # Make sure it is a future date. Past date will be next year same date
+    my $t = localtime;
+    $date_new = $t->year . $date;
+    my $dt = Time::Piece->strptime($date_new, "%Y%m%d");
+    my $now = Time::Piece->new;
+    if($now->epoch > $dt->epoch) {
+      $date_new = "" . ($t->year + 1) . $date;
+      $dt = Time::Piece->strptime($date_new, "%Y%m%d");   
+    }
+    $epoch_snooze = $dt->epoch;
+  } elsif(length($date) == 8) {
+    # if it is explicit date YYYYMMDD, use it anyway. It could be past date.
+    $epoch_snooze = Time::Piece->strptime($date, "%Y%m%d")->epoch;
+  }
+
+  my $data = &read_todo();
+  my @arr = @$data;
+  foreach my $id(@_) {
+    my $str = localtime($epoch_snooze);
+    if($id > 0 and $id<=@arr) {
+      print("Snooze id $id to date $date ($epoch_snooze) - $str\n");
+      $arr[$id - 1]->{snoozed} = $epoch_snooze;
+    } else {
+      print("No such id $id\n");
+    }
+  }
+  &save_todo($data);
+}
+
+sub print_usage() {
+  print("Usage:\n");
+  print("  todo + <string> : Add a todo\n");
+  print("  todo done|d <id> <id> <id> ... : mark todos as done\n");
+  print("  todd undo|u <id> <id> <id> ... : mark todos as undone\n");
+  print("  todd - <id> <id> <id> ... : delete todos\n");
+  print("  todd snooze|s <yyyyMMdd or MMdd> <id> <id> <id> ...: snooze todos to the date, default is tomorrow\n");
+  print("  todd all : show all todos (with snoozed)\n");
+}
+# Show todos. Parameter specifies whether force to show all, including snoozed to futures
+sub show_todo($) {
+  my $show_all = shift;
+  my $data = &read_todo();
+  my $counter = 0;
+  my $show_count = 0;
+  foreach my $entry(@$data) {
+    $counter = $counter + 1;
+    my $content = $entry->{content};
+    my $completed = $entry->{completed};
+    my $completed_str = colored("[TODO]", "bold on_red");
+    if($completed) {
+      $completed_str = colored("[DONE]", "bold on_green");
+    }
+    my $snooze = $entry->{snoozed};
+    my $now = time;
+    my $snooze_str = "";
+    if($show_all || $now >= $snooze) {
+      my $time = localtime($snooze);
+      my $timestr = $time->strftime("%a %d/%b/%Y");
+      if($now < $snooze) {
+        $snooze_str = colored(" snoozed to $timestr", "yellow");
+      }
+      my $counter_str = sprintf("%3d", $counter);
+      print(colored(" >>>>$counter_str ","on_blue bold") . " $completed_str $content $snooze_str\n");
+      $show_count = $show_count + 1;
+    }
+  }
+  if($show_count == 0) {
+    print("Nothing at this moment. Hoo Ray!\n");
+  }
+}
+
+# Add a new todo with text described
+sub add_todo($) {
+  my $content = shift;
+  my $data = &read_todo();
+  my $entry = {};
+  $entry->{completed} = 0;
+  $entry->{snoozed}=0;
+  $entry->{content}=$content;
+  push @$data, $entry;
+  &save_todo($data);
+}
+
+# read todo from todo file. $HOME/.todo
+sub save_todo($) {
+  my $entries = shift;
+  open FH, ">$FILE";
+  foreach my $entry(@$entries) {
+    my $content = $entry->{content};
+    my $completed = $entry->{completed};
+    my $snoozed = $entry->{snoozed};
+    print FH "$content#_#$completed#_#$snoozed\n";
+  }
+  close FH;
+}
+
+# save an array ref of hash to todo file. $HOME/.todo
+sub read_todo() {
+  my @result = ();
+  if(!-e $FILE) {
+    return \@result;
+  }
+  open FH, "<$FILE";
+  my @lines = <FH>;
+  foreach my $line(@lines) {
+    chomp $line;
+    my $entry = {};
+    my ($content, $completed, $snoozed) = split(/#_#/, $line);
+    $entry->{content} = $content;
+    $entry->{completed} = $completed;
+    $entry->{snoozed} = $snoozed;
+    push @result, $entry;
+  }
+  close FH;
+  return \@result;
+}
+
